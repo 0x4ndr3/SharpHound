@@ -63,7 +63,7 @@ jobs:
       run: scp -o StrictHostKeychecking=no bin\Release\net462\SharpHound.exe ${{ inputs.os_username }}@${{ inputs.payload_server }}:/home/${{ inputs.os_username }}/
         
     - name: Move payload to Apache root folder
-      run: ssh -o StrictHostKeychecking=no ${{ inputs.os_username }}@${{ inputs.payload_server }} 'sudo mv /home/${{ inputs.os_username }}/Sharphound.exe /var/www/html/'
+      run: ssh -o StrictHostKeychecking=no ${{ inputs.os_username }}@${{ inputs.payload_server }} 'sudo mv /home/${{ inputs.os_username }}/SharpHound.exe /var/www/html/sharphound.exe'
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v3
