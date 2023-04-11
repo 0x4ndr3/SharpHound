@@ -1,0 +1,72 @@
+name: .NET Core Desktop
+
+on:
+
+  workflow_dispatch:
+
+    inputs:
+      os_username:
+        description: 'username used to SSH into payload server'
+        required: false
+        default: 'adminuser'
+      payload_server:
+        description: 'Payload server IP address to SSh into'
+        required: true
+
+jobs:
+
+  build:
+
+    strategy:
+      matrix:
+        configuration: [Release]
+
+    runs-on: windows-latest  # For a list of available runner types, refer to
+                             # https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idruns-on
+
+    env:
+      Solution_Name: Sharphound.sln                                 # Replace with your solution name, i.e. MyWpfApp.sln.
+      Test_Project_Path: Sharphound.csproj                 # Replace with the path to your test project, i.e. MyWpfApp.Tests\MyWpfApp.Tests.csproj.
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    # Install the .NET Core workload
+    - name: Install .NET Core
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 5.0.x
+
+    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
+    - name: Setup MSBuild.exe
+      uses: microsoft/setup-msbuild@v1.0.2
+
+    - name: Restore Dependencies
+      run: dotnet restore
+
+    # Create the app package by building and packaging the Windows Application Packaging project
+    - name: Build the solution
+      run: msbuild $env:Solution_Name /p:Configuration=$env:Configuration
+      env:
+        Configuration: ${{ matrix.configuration }}
+
+    - name: Create .ssh folder
+      run: md ~/.ssh
+
+    - name: Dump SSH private key into local file
+      run: echo "${{ secrets.SSH_KEY_UPLOAD_ARTIFACTS }}" > ~/.ssh/id_rsa
+
+    - name: Copy file via ssh key
+      run: scp -o StrictHostKeychecking=no bin\Release\Sharphound.exe ${{ inputs.os_username }}@${{ inputs.payload_server }}:/home/${{ inputs.os_username }}/
+        
+    - name: Move payload to Apache root folder
+      run: ssh -o StrictHostKeychecking=no ${{ inputs.os_username }}@${{ inputs.payload_server }} 'sudo mv /home/${{ inputs.os_username }}/Sharphound.exe /var/www/html/'
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: Red Team Tools
+        path: bin\Release\Sharphound.exe
